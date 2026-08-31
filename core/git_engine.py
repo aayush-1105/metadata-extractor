@@ -15,14 +15,14 @@ def get_churn_metrics(repo_path: str, commit_sha: str) -> dict:
         "total_files_changed": 0,
         "code_churn_density": 0.0,
         "git_diff_src_churn": 0,
-        "git_diff_files_added": 0,
-        "git_diff_files_deleted": 0,
-        "git_diff_files_modified": 0,
-        "git_diff_tests_added": 0,
-        "git_diff_tests_deleted": 0,
-        "git_diff_src_files": 0,
-        "git_diff_doc_files": 0,
-        "git_diff_other_files": 0,
+        "gh_diff_files_added": 0,
+        "gh_diff_files_deleted": 0,
+        "gh_diff_files_modified": 0,
+        "gh_diff_tests_added": 0,
+        "gh_diff_tests_deleted": 0,
+        "gh_diff_src_files": 0,
+        "gh_diff_doc_files": 0,
+        "gh_diff_other_files": 0,
         "gh_num_commits_on_files_touched": 0
     }
     
@@ -50,26 +50,26 @@ def get_churn_metrics(repo_path: str, commit_sha: str) -> dict:
             is_test = "test" in fpath.lower()
             
             if is_test:
-                metrics["git_diff_tests_added"] += added
-                metrics["git_diff_tests_deleted"] += deleted
+                metrics["gh_diff_tests_added"] += added
+                metrics["gh_diff_tests_deleted"] += deleted
             elif ext in SRC_EXTS:
                 metrics["git_diff_src_churn"] += (added + deleted)
-                metrics["git_diff_src_files"] += 1
+                metrics["gh_diff_src_files"] += 1
             elif ext in DOC_EXTS:
-                metrics["git_diff_doc_files"] += 1
+                metrics["gh_diff_doc_files"] += 1
             else:
-                metrics["git_diff_other_files"] += 1
+                metrics["gh_diff_other_files"] += 1
 
     for line in namestat.splitlines():
         parts = line.split("\t")
         if len(parts) >= 2:
             status = parts[0][0]
             if status == 'A':
-                metrics["git_diff_files_added"] += 1
+                metrics["gh_diff_files_added"] += 1
             elif status == 'D':
-                metrics["git_diff_files_deleted"] += 1
+                metrics["gh_diff_files_deleted"] += 1
             elif status == 'M':
-                metrics["git_diff_files_modified"] += 1
+                metrics["gh_diff_files_modified"] += 1
 
     metrics["total_files_changed"] = len(files_touched)
     if metrics["total_files_changed"] > 0:
