@@ -15,6 +15,8 @@ def get_churn_metrics(repo_path: str, commit_sha: str) -> dict:
         "total_files_changed": 0,
         "code_churn_density": 0.0,
         "git_diff_src_churn": 0,
+        "git_diff_test_churn": 0,
+        "test_to_src_churn_ratio": 0.0,
         "gh_diff_files_added": 0,
         "gh_diff_files_deleted": 0,
         "gh_diff_files_modified": 0,
@@ -26,8 +28,15 @@ def get_churn_metrics(repo_path: str, commit_sha: str) -> dict:
         "gh_num_commits_on_files_touched": 0
     }
     
-    parent = run_git(f"git rev-parse {commit_sha}^", repo_path)
-    diff_target = f"{parent} {commit_sha}" if parent and "fatal" not in parent else commit_sha
+    # NOTE: use "~1" rather than "^" — under shell=True on Windows the caret is
+    # cmd.exe's escape char and gets stripped, so "sha^" resolves back to "sha".
+    parent = run_git(f"git rev-parse {commit_sha}~1", repo_path)
+    if parent and "fatal" not in parent and parent != commit_sha:
+        diff_target = f"{parent} {commit_sha}"
+    else:
+        # Root commit: diff against the empty tree so the initial import counts as churn.
+        empty_tree = run_git("git hash-object -t tree /dev/null", repo_path)
+        diff_target = f"{empty_tree} {commit_sha}" if empty_tree else commit_sha
     
     numstat = run_git(f"git diff --numstat {diff_target}", repo_path)
     namestat = run_git(f"git diff --name-status {diff_target}", repo_path)
@@ -52,6 +61,7 @@ def get_churn_metrics(repo_path: str, commit_sha: str) -> dict:
             if is_test:
                 metrics["gh_diff_tests_added"] += added
                 metrics["gh_diff_tests_deleted"] += deleted
+                metrics["git_diff_test_churn"] += (added + deleted)
             elif ext in SRC_EXTS:
                 metrics["git_diff_src_churn"] += (added + deleted)
                 metrics["gh_diff_src_files"] += 1
@@ -74,6 +84,11 @@ def get_churn_metrics(repo_path: str, commit_sha: str) -> dict:
     metrics["total_files_changed"] = len(files_touched)
     if metrics["total_files_changed"] > 0:
         metrics["code_churn_density"] = round((total_added + total_deleted) / metrics["total_files_changed"], 2)
+
+    if metrics["git_diff_src_churn"] > 0:
+        metrics["test_to_src_churn_ratio"] = round(
+            metrics["git_diff_test_churn"] / metrics["git_diff_src_churn"], 2
+        )
     
     commits_touched = 0
     for f in files_touched[:10]:
@@ -94,6 +109,7 @@ def get_repo_git_metrics(repo_path: str, commit_sha: str) -> dict:
     
     parents = run_git(f"git log --pretty=%P -n 1 {commit_sha}", repo_path).split()
     metrics["git_merged_with"] = parents[1] if len(parents) > 1 else ""
+    metrics["git_merged_with_present"] = 1 if len(parents) > 1 else 0
     metrics["gh_num_commits_in_push"] = 1
     metrics["gh_commits_in_push"] = commit_sha
     
