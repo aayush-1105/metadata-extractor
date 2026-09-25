@@ -3,6 +3,7 @@ import sys
 import argparse
 import subprocess
 import shutil
+import tempfile
 
 from core.git_engine import get_churn_metrics, get_repo_git_metrics
 from core.static_analyzer import analyze_workspace
@@ -16,7 +17,7 @@ def parse_repo_url(url: str):
     return parts[-2], parts[-1]
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract 51 TravisTorrent Metadata Features from a Repository")
+    parser = argparse.ArgumentParser(description="Extract 39 TravisTorrent Metadata Features from a Repository")
     parser.add_argument("--repo", type=str, required=True, help="GitHub repository URL or local path")
     parser.add_argument("--commit", type=str, default=None, help="Commit SHA (defaults to HEAD)")
     parser.add_argument("--output", type=str, default="features.csv", help="Output CSV path")
@@ -25,11 +26,15 @@ def main():
     temp_dir = None
     if args.repo.startswith("http://") or args.repo.startswith("https://"):
         owner, repo = parse_repo_url(args.repo)
-        temp_dir = os.path.join(os.getcwd(), "temp_target_repo")
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir, ignore_errors=True)
-        print(f"[*] Cloning {args.repo} into temporary workspace...")
-        subprocess.run(f"git clone {args.repo} {temp_dir}", shell=True, check=True)
+        temp_dir = tempfile.mkdtemp(prefix="metadata_extractor_")
+        # print(f"[*] Cloning {args.repo} into temporary workspace...")
+        subprocess.run(
+            f'git clone --quiet "{args.repo}" "{temp_dir}"',
+            shell=True,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
         repo_path = temp_dir
     else:
         repo_path = os.path.abspath(args.repo)
